@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Temple Run 3D - Mini Runner</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      user-select: none;
+      touch-action: none;
+    }
+    #canvas-container {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+    }
+  </style>
+</head>
+<body class="bg-slate-950">
+
+  <!-- HUD Overlay (Skor & Koin UI) -->
+  <div id="hud" class="fixed top-4 left-4 right-4 flex justify-between items-center pointer-events-none z-10">
+    <div class="bg-slate-900/80 backdrop-blur-md border border-slate-800 px-4 py-2 rounded-2xl flex items-center gap-2 shadow-lg">
+      <span class="text-xs text-slate-400 font-bold uppercase tracking-wider">Skor</span>
+      <span id="score-text" class="text-xl font-black text-amber-400">0</span>
+    </div>
+    <div class="bg-slate-900/80 backdrop-blur-md border border-slate-800 px-4 py-2 rounded-2xl flex items-center gap-2 shadow-lg">
+      <span class="text-lg">🪙</span>
+      <span id="coin-text" class="text-xl font-black text-yellow-300">0</span>
+    </div>
+  </div>
+
+  <div id="canvas-container"></div>
+
+  <!-- Controls & Customization Guide Popup -->
+  <div id="start-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-20">
+    <div class="bg-slate-900 border border-slate-800 p-6 md:p-8 rounded-3xl max-w-md w-full text-center space-y-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div class="w-16 h-16 bg-gradient-to-tr from-amber-500 to-rose-500 rounded-2xl mx-auto flex items-center justify-center text-3xl shadow-lg shadow-rose-500/30">
+        🏃‍♂️
+      </div>
+      <div>
+        <h1 class="text-2xl font-extrabold text-white">TEMPLE RUNNER 3D</h1>
+        <p class="text-xs text-slate-400 mt-1">Lari sejauh mungkin & kustomisasi runner-mu!</p>
+      </div>
+
+      <!-- Character Customization Section -->
+      <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-left space-y-3">
+        <p class="text-xs font-bold text-amber-400 uppercase tracking-wider">🎨 Kustomisasi Runner</p>
+        
+        <div>
+          <label class="text-xs text-slate-400 block mb-1">Warna Baju</label>
+          <div class="flex gap-2">
+            <button class="color-btn w-8 h-8 rounded-full bg-rose-500 ring-2 ring-white" data-color="0xf43f5e"></button>
+            <button class="color-btn w-8 h-8 rounded-full bg-blue-500" data-color="0x3b82f6"></button>
+            <button class="color-btn w-8 h-8 rounded-full bg-emerald-500" data-color="0x10b981"></button>
+            <button class="color-btn w-8 h-8 rounded-full bg-purple-500" data-color="0xa855f7"></button>
+            <button class="color-btn w-8 h-8 rounded-full bg-amber-500" data-color="0xf59e0b"></button>
+          </div>
+        </div>
+
+        <div>
+          <label class="text-xs text-slate-400 block mb-1">Aksesoris Kepala</label>
+          <div class="grid grid-cols-3 gap-2 text-xs">
+            <button class="head-btn p-2 rounded-xl bg-slate-800 border border-amber-500 text-white font-medium" data-head="spiky">Rambut Keren</button>
+            <button class="head-btn p-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-400" data-head="cap">Topi Cap</button>
+            <button class="head-btn p-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-400" data-head="headphones">Headphone</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 text-left bg-slate-950 p-4 rounded-2xl border border-slate-800 text-xs">
+        <div>
+          <p class="text-slate-400 font-semibold mb-1">🎮 Keyboard</p>
+          <p>⬅️ ➡️ / A D : Geser</p>
+          <p>⬆️ / W / Space : Lompat</p>
+          <p>⬇️ / S : Slide / Merunduk</p>
+        </div>
+        <div>
+          <p class="text-slate-400 font-semibold mb-1">📱 Touch / HP</p>
+          <p>Swipe Kiri / Kanan</p>
+          <p>Swipe Atas : Lompat</p>
+          <p>Swipe Bawah : Slide</p>
+        </div>
+      </div>
+
+      <button id="start-btn" class="w-full py-4 bg-gradient-to-r from-amber-500 to-rose-600 hover:from-amber-400 hover:to-rose-500 text-white font-bold rounded-2xl text-lg shadow-lg shadow-rose-600/30 transition transform active:scale-95">
+        Mulai Lari!
+      </button>
+
+      <!-- GitHub Link -->
+      <a href="https://github.com" target="_blank" class="inline-flex items-center justify-center gap-2 text-xs text-slate-400 hover:text-white pt-2 transition">
+        <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+        <span>Lihat Source Code di GitHub</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- Game Over Modal -->
+  <div id="gameover-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 z-30 hidden">
+    <div class="bg-slate-900 border border-slate-800 p-6 md:p-8 rounded-3xl max-w-md w-full text-center space-y-6 shadow-2xl">
+      <div class="w-16 h-16 bg-rose-500/20 border border-rose-500/30 text-rose-500 rounded-2xl mx-auto flex items-center justify-center text-3xl">
+        💥
+      </div>
+      <div>
+        <h2 class="text-2xl font-extrabold text-rose-500">GAME OVER!</h2>
+        <p class="text-xs text-slate-400 mt-1">Lu nabrak rintangan, cupu banget!</p>
+      </div>
+
+      <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 grid grid-cols-2 gap-4">
+        <div>
+          <p class="text-[10px] text-slate-400 uppercase">Skor Akhir</p>
+          <p id="final-score" class="text-2xl font-black text-white">0</p>
+        </div>
+        <div>
+          <p class="text-[10px] text-slate-400 uppercase">Koin Didapat</p>
+          <p id="final-coins" class="text-2xl font-black text-amber-400">0</p>
+        </div>
+      </div>
+
+      <button id="restart-btn" class="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold rounded-2xl text-lg shadow-lg shadow-emerald-600/30 transition transform active:scale-95">
+        Coba Lagi
+      </button>
+
+      <!-- GitHub Link -->
+      <a href="https://github.com" target="_blank" class="inline-flex items-center justify-center gap-2 text-xs text-slate-400 hover:text-white pt-2 transition block">
+        <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+        <span>Lihat Source Code di GitHub</span>
+      </a>
+    </div>
+  </div>
+
+  <script>
+    // --- GAME ENGINE & SETUP ---
+    let scene, camera, renderer;
+    let clock = new THREE.Clock(); // Added clock for smooth delta time calculation
+    let player, playerBodyMesh, playerHeadGroup;
+    let isPlaying = false;
+    let score = 0, coins = 0;
+    
+    // Speed mechanics
+    const INITIAL_SPEED = 0.15; // Santai & Pelan saat awal
+    let speed = INITIAL_SPEED;
+    
+    // Customization selections
+    let selectedColor = 0xf43f5e;
+    let selectedHeadStyle = 'spiky';
+
+    // Lanes: -1 (Left), 0 (Center), 1 (Right)
+    const LANE_WIDTH = 2.5;
+    let currentLane = 0;
+    let targetX = 0;
+    
+    // Jump & Slide physics
+    let isJumping = false;
+    let jumpVelocity = 0;
+    const GRAVITY = -0.015;
+    const JUMP_FORCE = 0.35;
+
+    let isSliding = false;
+    let slideTimer = 0;
+    const SLIDE_DURATION = 35; // Frame count (~0.6s)
+
+    // Game objects pools
+    let trackBlocks = [];
+    let obstacles = [];
+    let coinObjects = [];
+    let clouds = [];
+
+    // Mobile Touch Tracking
+    let touchStartX = 0;
+    let touchStartY = 0;
+
+    const scoreEl = document.getElementById('score-text');
+    const coinEl = document.getElementById('coin-text');
+    const startModal = document.getElementById('start-modal');
+    const gameoverModal = document.getElementById('gameover-modal');
+
+    function init() {
+      // 1. Scene Setup - Bright Sky Blue Theme
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x7dd3fc); // Light Sky Blue
+      scene.fog = new THREE.FogExp2(0x7dd3fc, 0.015);
+
+      // 2. Camera Setup
+      camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 120);
+      camera.position.set(0, 3.5, 6);
+      camera.rotation.x = -0.25;
+
+      // 3. Renderer Setup
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.shadowMap.enabled = true;
+      document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+      // 4. Bright Outdoor Lights
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
+      scene.add(ambientLight);
+
+      const sunLight = new THREE.DirectionalLight(0xfffaf0, 1.0);
+      sunLight.position.set(20, 30, 10);
+      sunLight.castShadow = true;
+      sunLight.shadow.mapSize.width = 1024;
+      sunLight.shadow.mapSize.height = 1024;
+      scene.add(sunLight);
+
+      // 5. Create Player
+      buildCustomPlayer();
+
+      // 6. Generate Clouds in the Sky
+      spawnClouds();
+
+      // 7. Generate Initial Environment
+      for (let i = 0; i < 15; i++) {
+        spawnTrack(i * 10);
+      }
+
+      // Setup UI Customization Listeners
+      setupCustomizationUI();
+
+      // Event Listeners
+      window.addEventListener('resize', onWindowResize);
+      window.addEventListener('keydown', handleKeyDown);
+      window.addEventListener('touchstart', handleTouchStart);
+      window.addEventListener('touchend', handleTouchEnd);
+
+      document.getElementById('start-btn').addEventListener('click', startGame);
+      document.getElementById('restart-btn').addEventListener('click', restartGame);
+    }
+
+    function spawnClouds() {
+      const cloudGeo = new THREE.DodecahedronGeometry(2, 1);
+      const cloudMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 });
+
+      for (let i = 0; i < 20; i++) {
+        const cloudGroup = new THREE.Group();
+        const count = 3 + Math.floor(Math.random() * 3);
+        for (let c = 0; c < count; c++) {
+          const part = new THREE.Mesh(cloudGeo, cloudMat);
+          part.position.set(
+            (Math.random() - 0.5) * 2,
+            (Math.random() - 0.5) * 1.5,
+            (Math.random() - 0.5) * 2
+          );
+          const s = 0.8 + Math.random() * 0.6;
+          part.scale.set(s, s, s);
+          cloudGroup.add(part);
+        }
+        cloudGroup.position.set(
+          (Math.random() - 0.5) * 80,
+          12 + Math.random() * 10,
+          -Math.random() * 100
+        );
+        scene.add(cloudGroup);
+        clouds.push(cloudGroup);
+      }
+    }
+
+    function setupCustomizationUI() {
+      // Color buttons
+      document.querySelectorAll('.color-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('ring-2', 'ring-white'));
+          e.target.classList.add('ring-2', 'ring-white');
+          selectedColor = parseInt(e.target.getAttribute('data-color'));
+          if (playerBodyMesh) {
+            playerBodyMesh.material.color.setHex(selectedColor);
+          }
+        });
+      });
+
+      // Headstyle buttons
+      document.querySelectorAll('.head-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          document.querySelectorAll('.head-btn').forEach(b => {
+            b.classList.remove('bg-slate-800', 'border-amber-500', 'text-white');
+            b.classList.add('bg-slate-900', 'border-slate-700', 'text-slate-400');
+          });
+          e.target.classList.remove('bg-slate-900', 'border-slate-700', 'text-slate-400');
+          e.target.classList.add('bg-slate-800', 'border-amber-500', 'text-white');
+          selectedHeadStyle = e.target.getAttribute('data-head');
+          buildCustomPlayer();
+        });
+      });
+    }
+
+    function buildCustomPlayer() {
+      if (player) scene.remove(player);
+
+      const group = new THREE.Group();
+
+      // Base Pivot Group (for smooth sliding / rotating)
+      const modelGroup = new THREE.Group();
+      modelGroup.name = "modelGroup";
+
+      // Postur dasar runner: Agak condong ke depan
+      modelGroup.rotation.x = -0.15;
+
+      // 1. Torso / Body
+      const bodyGeo = new THREE.CylinderGeometry(0.35, 0.3, 0.9, 8);
+      const bodyMat = new THREE.MeshStandardMaterial({ color: selectedColor, roughness: 0.3 });
+      playerBodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
+      playerBodyMesh.position.y = 0.85;
+      playerBodyMesh.castShadow = true;
+      modelGroup.add(playerBodyMesh);
+
+      // 2. Head & Skin
+      const headGeo = new THREE.SphereGeometry(0.28, 16, 16);
+      const headMat = new THREE.MeshStandardMaterial({ color: 0xfde047 }); // Yellow skin tone
+      const head = new THREE.Mesh(headGeo, headMat);
+      head.position.y = 1.45;
+      head.castShadow = true;
+      modelGroup.add(head);
+
+      // 3. Eyes
+      const eyeGeo = new THREE.BoxGeometry(0.08, 0.08, 0.08);
+      const eyeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+      const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+      leftEye.position.set(-0.1, 1.48, -0.22);
+      const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+      rightEye.position.set(0.1, 1.48, -0.22);
+      modelGroup.add(leftEye, rightEye);
+
+      // 4. Limbs (Arms & Legs with Pivots for Natural Swing)
+      const limbMat = new THREE.MeshStandardMaterial({ color: 0x1e293b });
+      const legGeo = new THREE.CylinderGeometry(0.09, 0.09, 0.55);
+      
+      // Left Leg Pivot
+      const leftLegGroup = new THREE.Group();
+      leftLegGroup.name = "leftLegGroup";
+      leftLegGroup.position.set(-0.18, 0.45, 0);
+      const leftLeg = new THREE.Mesh(legGeo, limbMat);
+      leftLeg.position.y = -0.25;
+      leftLegGroup.add(leftLeg);
+
+      // Right Leg Pivot
+      const rightLegGroup = new THREE.Group();
+      rightLegGroup.name = "rightLegGroup";
+      rightLegGroup.position.set(0.18, 0.45, 0);
+      const rightLeg = new THREE.Mesh(legGeo, limbMat);
+      rightLeg.position.y = -0.25;
+      rightLegGroup.add(rightLeg);
+
+      modelGroup.add(leftLegGroup, rightLegGroup);
+
+      // Arms Pivots
+      const armGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.55);
+      
+      // Left Arm Pivot
+      const leftArmGroup = new THREE.Group();
+      leftArmGroup.name = "leftArmGroup";
+      leftArmGroup.position.set(-0.42, 1.1, 0);
+      const leftArm = new THREE.Mesh(armGeo, bodyMat);
+      leftArm.position.y = -0.25;
+      leftArmGroup.add(leftArm);
+
+      // Right Arm Pivot
+      const rightArmGroup = new THREE.Group();
+      rightArmGroup.name = "rightArmGroup";
+      rightArmGroup.position.set(0.42, 1.1, 0);
+      const rightArm = new THREE.Mesh(armGeo, bodyMat);
+      rightArm.position.y = -0.25;
+      rightArmGroup.add(rightArm);
+
+      modelGroup.add(leftArmGroup, rightArmGroup);
+
+      // 5. Head Accessories (Custom Hair/Cap/Headphones)
+      playerHeadGroup = new THREE.Group();
+      if (selectedHeadStyle === 'spiky') {
+        const hairGeo = new THREE.ConeGeometry(0.25, 0.35, 5);
+        const hairMat = new THREE.MeshStandardMaterial({ color: 0x1e1b4b });
+        const hair = new THREE.Mesh(hairGeo, hairMat);
+        hair.position.y = 1.75;
+        playerHeadGroup.add(hair);
+      } else if (selectedHeadStyle === 'cap') {
+        const capGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 12);
+        const capMat = new THREE.MeshStandardMaterial({ color: 0x0284c7 });
+        const cap = new THREE.Mesh(capGeo, capMat);
+        cap.position.y = 1.68;
+        
+        // Visor
+        const visorGeo = new THREE.BoxGeometry(0.3, 0.02, 0.2);
+        const visor = new THREE.Mesh(visorGeo, capMat);
+        visor.position.set(0, 1.65, -0.25);
+        playerHeadGroup.add(cap, visor);
+      } else if (selectedHeadStyle === 'headphones') {
+        const bandGeo = new THREE.TorusGeometry(0.3, 0.04, 8, 16, Math.PI);
+        const hpMat = new THREE.MeshStandardMaterial({ color: 0xef4444 });
+        const band = new THREE.Mesh(bandGeo, hpMat);
+        band.position.set(0, 1.5, 0);
+        band.rotation.x = -Math.PI / 2;
+
+        const cupGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.08, 8);
+        const leftCup = new THREE.Mesh(cupGeo, hpMat);
+        leftCup.position.set(-0.28, 1.45, 0);
+        leftCup.rotation.z = Math.PI / 2;
+        const rightCup = new THREE.Mesh(cupGeo, hpMat);
+        rightCup.position.set(0.28, 1.45, 0);
+        rightCup.rotation.z = Math.PI / 2;
+
+        playerHeadGroup.add(band, leftCup, rightCup);
+      }
+
+      modelGroup.add(playerHeadGroup);
+      group.add(modelGroup);
+
+      player = group;
+      scene.add(player);
+    }
+
+    // --- DECORATION CREATORS (Sapi, Kambing, Rumah, Pohon) ---
+    function createCow() {
+      const cow = new THREE.Group();
+      // Body
+      const body = new THREE.Mesh(
+        new THREE.BoxGeometry(1.2, 0.8, 1.8),
+        new THREE.MeshStandardMaterial({ color: 0xffffff })
+      );
+      body.position.y = 0.7;
+      body.castShadow = true;
+      cow.add(body);
+
+      // Black Spots
+      const spotMat = new THREE.MeshStandardMaterial({ color: 0x1e293b });
+      const spot1 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.02), spotMat);
+      spot1.position.set(0.61, 0.8, 0.2);
+      const spot2 = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.4, 0.6), spotMat);
+      spot2.position.set(-0.61, 0.7, -0.3);
+      cow.add(spot1, spot2);
+
+      // Head
+      const head = new THREE.Mesh(
+        new THREE.BoxGeometry(0.6, 0.6, 0.7),
+        new THREE.MeshStandardMaterial({ color: 0xffffff })
+      );
+      head.position.set(0, 1.1, -0.9);
+      head.castShadow = true;
+      cow.add(head);
+
+      // Horns
+      const hornMat = new THREE.MeshStandardMaterial({ color: 0xd97706 });
+      const h1 = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.25, 4), hornMat);
+      h1.position.set(-0.22, 1.48, -0.9);
+      const h2 = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.25, 4), hornMat);
+      h2.position.set(0.22, 1.48, -0.9);
+      cow.add(h1, h2);
+
+      // Legs
+      const legMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0 });
+      [[-0.4, 0.3, 0.6], [0.4, 0.3, 0.6], [-0.4, 0.3, -0.6], [0.4, 0.3, -0.6]].forEach(p => {
+        const leg = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.6, 0.22), legMat);
+        leg.position.set(...p);
+        cow.add(leg);
+      });
+
+      return cow;
+    }
+
+    function createGoat() {
+      const goat = new THREE.Group();
+      // Body
+      const body = new THREE.Mesh(
+        new THREE.BoxGeometry(0.7, 0.6, 1.1),
+        new THREE.MeshStandardMaterial({ color: 0xe2e8f0 })
+      );
+      body.position.y = 0.55;
+      body.castShadow = true;
+      goat.add(body);
+
+      // Head
+      const head = new THREE.Mesh(
+        new THREE.BoxGeometry(0.4, 0.4, 0.5),
+        new THREE.MeshStandardMaterial({ color: 0xc2410c }) // Brown head
+      );
+      head.position.set(0, 0.85, -0.55);
+      goat.add(head);
+
+      // Legs
+      const legMat = new THREE.MeshStandardMaterial({ color: 0x475569 });
+      [[-0.25, 0.22, 0.35], [0.25, 0.22, 0.35], [-0.25, 0.22, -0.35], [0.25, 0.22, -0.35]].forEach(p => {
+        const leg = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.45, 0.14), legMat);
+        leg.position.set(...p);
+        goat.add(leg);
+      });
+
+      return goat;
+    }
+
+    function createHouse() {
+      const house = new THREE.Group();
+      // Base Wall
+      const wall = new THREE.Mesh(
+        new THREE.BoxGeometry(3.2, 2.2, 3.2),
+        new THREE.MeshStandardMaterial({ color: 0xfef08a, roughness: 0.8 }) // Warm Yellow Wall
+      );
+      wall.position.y = 1.1;
+      wall.castShadow = true;
+      house.add(wall);
+
+      // Roof
+      const roof = new THREE.Mesh(
+        new THREE.ConeGeometry(2.8, 1.8, 4),
+        new THREE.MeshStandardMaterial({ color: 0xb91c1c, roughness: 0.4 }) // Red Roof
+      );
+      roof.position.y = 3.1;
+      roof.rotation.y = Math.PI / 4;
+      roof.castShadow = true;
+      house.add(roof);
+
+      // Door
+      const door = new THREE.Mesh(
+        new THREE.BoxGeometry(0.8, 1.3, 0.1),
+        new THREE.MeshStandardMaterial({ color: 0x78350f })
+      );
+      door.position.set(0, 0.65, 1.61);
+      house.add(door);
+
+      return house;
+    }
+
+    function createTree() {
+      const tree = new THREE.Group();
+      const trunk = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.25, 0.35, 1.5, 8),
+        new THREE.MeshStandardMaterial({ color: 0x78350f })
+      );
+      trunk.position.y = 0.75;
+      trunk.castShadow = true;
+      tree.add(trunk);
+
+      const foliage = new THREE.Mesh(
+        new THREE.DodecahedronGeometry(1.4, 1),
+        new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.8 })
+      );
+      foliage.position.y = 2.2;
+      foliage.castShadow = true;
+      tree.add(foliage);
+
+      return tree;
+    }
+
+    function spawnTrack(zPos) {
+      // Main Brick Track Floor
+      const geo = new THREE.BoxGeometry(8, 0.5, 10);
+      const mat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.7 });
+      const track = new THREE.Mesh(geo, mat);
+      track.position.set(0, -0.25, -zPos);
+      track.receiveShadow = true;
+      scene.add(track);
+      trackBlocks.push(track);
+
+      // Lush Grass Lawns on sides
+      [-12, 12].forEach(x => {
+        const grassGeo = new THREE.BoxGeometry(16, 0.4, 10);
+        const grassMat = new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.9 });
+        const grass = new THREE.Mesh(grassGeo, grassMat);
+        grass.position.set(x, -0.3, -zPos);
+        scene.add(grass);
+        trackBlocks.push(grass);
+      });
+
+      // Side Pillars / Ancient Stone Borders
+      [-4.2, 4.2].forEach(x => {
+        const pillarGeo = new THREE.BoxGeometry(0.5, 1.5, 0.5);
+        const pillarMat = new THREE.MeshStandardMaterial({ color: 0x78716c, roughness: 0.6 });
+        const pillar = new THREE.Mesh(pillarGeo, pillarMat);
+        pillar.position.set(x, 0.75, -zPos);
+        scene.add(pillar);
+        trackBlocks.push(pillar);
+      });
+
+      // --- SPAWN SIDE SCENERY ---
+      [-10, 10].forEach(sideX => {
+        if (Math.random() > 0.4) {
+          const posX = sideX + (Math.random() * 4 - 2);
+          const randType = Math.random();
+          let decor;
+
+          if (randType < 0.25) {
+            decor = createCow();
+            decor.rotation.y = Math.random() * Math.PI * 2;
+          } else if (randType < 0.5) {
+            decor = createGoat();
+            decor.rotation.y = Math.random() * Math.PI * 2;
+          } else if (randType < 0.75) {
+            decor = createHouse();
+            decor.rotation.y = sideX > 0 ? -Math.PI / 2 : Math.PI / 2;
+          } else {
+            decor = createTree();
+          }
+
+          decor.position.set(posX, 0, -zPos + (Math.random() * 4 - 2));
+          scene.add(decor);
+          trackBlocks.push(decor);
+        }
+      });
+
+      // Spawn Obstacles & Coins if beyond safe starting area
+      if (zPos > 20) {
+        if (Math.random() > 0.25) spawnObstacle(-zPos);
+        if (Math.random() > 0.35) spawnCoins(-zPos);
+      }
+    }
+
+    function spawnObstacle(zPos) {
+      const lane = [-1, 0, 1][Math.floor(Math.random() * 3)];
+      const typeRand = Math.random();
+
+      if (typeRand < 0.4) {
+        // 1. LOW HURDLE (Must Jump)
+        const obsGeo = new THREE.BoxGeometry(2.0, 0.8, 0.4);
+        const obsMat = new THREE.MeshStandardMaterial({ color: 0xb91c1c, roughness: 0.3 }); // Red wooden barrier
+        const obstacle = new THREE.Mesh(obsGeo, obsMat);
+        obstacle.position.set(lane * LANE_WIDTH, 0.4, zPos);
+        obstacle.castShadow = true;
+        obstacle.userData = { type: 'jump' };
+        scene.add(obstacle);
+        obstacles.push(obstacle);
+
+      } else if (typeRand < 0.75) {
+        // 2. HIGH OVERHEAD BARRIER (Must Slide / Merunduk)
+        const frameGroup = new THREE.Group();
+        
+        // Overhead Arch Bar (Elevated high so sliding player passes safely underneath)
+        const archGeo = new THREE.BoxGeometry(2.2, 0.8, 0.4);
+        const archMat = new THREE.MeshStandardMaterial({ color: 0x1e3a8a, roughness: 0.4 }); // Dark Blue Arch
+        const arch = new THREE.Mesh(archGeo, archMat);
+        arch.position.set(0, 2.2, 0); // Positioned high: clears slide, collides with standing runner
+        arch.castShadow = true;
+        frameGroup.add(arch);
+
+        // Side Supports (Thin poles on borders)
+        const poleGeo = new THREE.CylinderGeometry(0.06, 0.06, 2.6);
+        const poleMat = new THREE.MeshStandardMaterial({ color: 0x475569 });
+        const leftPole = new THREE.Mesh(poleGeo, poleMat);
+        leftPole.position.set(-1.05, 1.3, 0);
+        const rightPole = new THREE.Mesh(poleGeo, poleMat);
+        rightPole.position.set(1.05, 1.3, 0);
+        frameGroup.add(leftPole, rightPole);
+
+        frameGroup.position.set(lane * LANE_WIDTH, 0, zPos);
+        frameGroup.userData = { type: 'slide' };
+        scene.add(frameGroup);
+        obstacles.push(frameGroup);
+
+      } else {
+        // 3. FULL TALL WALL (Must Avoid Lane)
+        const wallGeo = new THREE.BoxGeometry(2.2, 2.5, 0.5);
+        const wallMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.8 }); // Stone Wall
+        const obstacle = new THREE.Mesh(wallGeo, wallMat);
+        obstacle.position.set(lane * LANE_WIDTH, 1.25, zPos);
+        obstacle.castShadow = true;
+        obstacle.userData = { type: 'full' };
+        scene.add(obstacle);
+        obstacles.push(obstacle);
+      }
+    }
+
+    function spawnCoins(zPos) {
+      const lane = [-1, 0, 1][Math.floor(Math.random() * 3)];
+      const coinGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.08, 16);
+      const coinMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.8, roughness: 0.2 });
+
+      for (let i = 0; i < 3; i++) {
+        const coin = new THREE.Mesh(coinGeo, coinMat);
+        coin.rotation.x = Math.PI / 2;
+        coin.position.set(lane * LANE_WIDTH, 0.7, zPos - (i * 1.5));
+        scene.add(coin);
+        coinObjects.push(coin);
+      }
+    }
+
+    // --- CONTROLS LOGIC ---
+    function handleKeyDown(e) {
+      if (!isPlaying) return;
+
+      if ((e.key === 'ArrowLeft' || e.key === 'a') && currentLane > -1) {
+        currentLane--;
+      } else if ((e.key === 'ArrowRight' || e.key === 'd') && currentLane < 1) {
+        currentLane++;
+      } else if ((e.key === 'ArrowUp' || e.key === ' ' || e.key === 'w') && !isJumping && !isSliding) {
+        isJumping = true;
+        jumpVelocity = JUMP_FORCE;
+      } else if ((e.key === 'ArrowDown' || e.key === 's') && !isJumping && !isSliding) {
+        triggerSlide();
+      }
+      targetX = currentLane * LANE_WIDTH;
+    }
+
+    function triggerSlide() {
+      isSliding = true;
+      slideTimer = SLIDE_DURATION;
+      
+      // Real Sliding Pose: Leaning back horizontally on ground
+      const modelGroup = player.getObjectByName("modelGroup");
+      if (modelGroup) {
+        modelGroup.rotation.x = Math.PI / 2.6; // Tilt runner back into slide
+        modelGroup.position.set(0, 0.2, 0.3); // Lower center of gravity to ground
+      }
+    }
+
+    function handleTouchStart(e) {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+    }
+
+    function handleTouchEnd(e) {
+      if (!isPlaying) return;
+      const diffX = e.changedTouches[0].clientX - touchStartX;
+      const diffY = e.changedTouches[0].clientY - touchStartY;
+
+      if (Math.abs(diffX) > Math.abs(diffY)) {
+        // Horizontal Swipe
+        if (diffX < -30 && currentLane > -1) currentLane--;
+        else if (diffX > 30 && currentLane < 1) currentLane++;
+      } else {
+        // Vertical Swipes
+        if (diffY < -30 && !isJumping && !isSliding) {
+          isJumping = true;
+          jumpVelocity = JUMP_FORCE;
+        } else if (diffY > 30 && !isJumping && !isSliding) {
+          triggerSlide();
+        }
+      }
+      targetX = currentLane * LANE_WIDTH;
+    }
+
+    // --- GAME LOOP ---
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = Math.min(clock.getDelta(), 0.1); // Smooth delta time
+
+      if (isPlaying) {
+        // 1. Move Player Smoothly Side-to-Side using Frame-Independent Delta
+        player.position.x += (targetX - player.position.x) * (delta * 18);
+
+        // 2. Handle Jump Physics
+        if (isJumping) {
+          player.position.y += jumpVelocity;
+          jumpVelocity += GRAVITY;
+          if (player.position.y <= 0) {
+            player.position.y = 0;
+            isJumping = false;
+          }
+        }
+
+        // 3. Handle Slide Timer
+        if (isSliding) {
+          slideTimer--;
+          if (slideTimer <= 0) {
+            isSliding = false;
+            const modelGroup = player.getObjectByName("modelGroup");
+            if (modelGroup) {
+              modelGroup.rotation.x = -0.15;
+              modelGroup.position.set(0, 0, 0);
+            }
+          }
+        }
+
+        // --- ANIMASI LARI HALUS & NATURAL ---
+        const modelGroup = player.getObjectByName("modelGroup");
+        if (!isSliding && modelGroup) {
+          const runTime = Date.now() * (speed * 0.08);
+          
+          // Ayunan Kaki
+          const leftLeg = modelGroup.getObjectByName("leftLegGroup");
+          const rightLeg = modelGroup.getObjectByName("rightLegGroup");
+          if (leftLeg && rightLeg) {
+            leftLeg.rotation.x = Math.sin(runTime) * 0.65;
+            rightLeg.rotation.x = -Math.sin(runTime) * 0.65;
+          }
+
+          // Ayunan Tangan
+          const leftArm = modelGroup.getObjectByName("leftArmGroup");
+          const rightArm = modelGroup.getObjectByName("rightArmGroup");
+          if (leftArm && rightArm) {
+            leftArm.rotation.x = -Math.sin(runTime) * 0.65;
+            rightArm.rotation.x = Math.sin(runTime) * 0.65;
+          }
+          
+          // Bounce badan tipis & santai
+          if (!isJumping) {
+            player.position.y = Math.abs(Math.sin(runTime * 2)) * 0.04;
+          }
+          
+          player.rotation.z = Math.sin(runTime) * 0.02;
+          camera.position.y = 3.5;
+        }
+
+        // 4. Move Clouds slowly in Sky
+        clouds.forEach(c => {
+          c.position.z += 0.05;
+          if (c.position.z > 10) c.position.z = -100;
+        });
+
+        // 5. Update Speed & Score Logic
+        // Kecepatan stabil (0.15) sampai skor nyampe 1000, baru perlahan makin ngebut!
+        if (score > 1000) {
+          speed = INITIAL_SPEED + (score - 1000) * 0.0001;
+        } else {
+          speed = INITIAL_SPEED;
+        }
+
+        // Increment Score secara bertahap saat lari
+        score += 1;
+        if (scoreEl) scoreEl.innerText = Math.floor(score);
+
+        // 6. Move Track, Obstacles, and Coins backwards
+        // Track movement
+        for (let i = trackBlocks.length - 1; i >= 0; i--) {
+          const block = trackBlocks[i];
+          block.position.z += speed;
+          if (block.position.z > 10) {
+            scene.remove(block);
+            trackBlocks.splice(i, 1);
+          }
+        }
+
+        // Regenerate Track ahead
+        const furthestZ = trackBlocks.reduce((minZ, b) => Math.min(minZ, b.position.z), 0);
+        if (furthestZ > -120) {
+          spawnTrack(-furthestZ + 10);
+        }
+
+        // 7. Move & Check Obstacles Collisions
+        for (let i = obstacles.length - 1; i >= 0; i--) {
+          const obs = obstacles[i];
+          obs.position.z += speed;
+
+          // Check Collision with Player
+          const playerBox = new THREE.Box3().setFromObject(player);
+          
+          if (obs.userData.type === 'slide') {
+            // Deteksi tabrakan khusus Rintangan Gantung (Merunduk):
+            // Hanya papan bagian atas (y > 1.6) yang dihitung nabrak!
+            const obsBox = new THREE.Box3().setFromObject(obs);
+            obsBox.min.y = 1.6; // Abaikan area kosong di bawah (y < 1.6)
+
+            if (playerBox.intersectsBox(obsBox)) {
+              gameOver();
+            }
+          } else {
+            // Rintangan biasa (Lompat / Tembok Full)
+            const obsBox = new THREE.Box3().setFromObject(obs);
+            if (playerBox.intersectsBox(obsBox)) {
+              gameOver();
+            }
+          }
+
+          // Clean up passed obstacles
+          if (obs.position.z > 10) {
+            scene.remove(obs);
+            obstacles.splice(i, 1);
+          }
+        }
+
+        // 8. Move & Collect Coins
+        for (let i = coinObjects.length - 1; i >= 0; i--) {
+          const coin = coinObjects[i];
+          coin.position.z += speed;
+          coin.rotation.z += 0.05; // Spin coin
+
+          // Collect detection
+          const distance = player.position.distanceTo(coin.position);
+          if (distance < 0.8) {
+            coins++;
+            if (coinEl) coinEl.innerText = coins;
+            scene.remove(coin);
+            coinObjects.splice(i, 1);
+          } else if (coin.position.z > 10) {
+            scene.remove(coin);
+            coinObjects.splice(i, 1);
+          }
+        }
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    function startGame() {
+      if (startModal) startModal.classList.add('hidden');
+      if (gameoverModal) gameoverModal.classList.add('hidden');
+      resetGameState();
+      isPlaying = true;
+    }
+
+    function restartGame() {
+      if (gameoverModal) gameoverModal.classList.add('hidden');
+      resetGameState();
+      isPlaying = true;
+    }
+
+    function resetGameState() {
+      score = 0;
+      coins = 0;
+      speed = INITIAL_SPEED;
+      currentLane = 0;
+      targetX = 0;
+      isJumping = false;
+      isSliding = false;
+
+      if (scoreEl) scoreEl.innerText = '0';
+      if (coinEl) coinEl.innerText = '0';
+
+      if (player) {
+        player.position.set(0, 0, 0);
+        const modelGroup = player.getObjectByName("modelGroup");
+        if (modelGroup) {
+          modelGroup.rotation.x = 0;
+          modelGroup.position.set(0, 0, 0);
+        }
+      }
+
+      // Clear existing game objects
+      obstacles.forEach(o => scene.remove(o));
+      coinObjects.forEach(c => scene.remove(c));
+      trackBlocks.forEach(t => scene.remove(t));
+      
+      obstacles = [];
+      coinObjects = [];
+      trackBlocks = [];
+
+      // Re-spawn initial tracks
+      for (let i = 0; i < 15; i++) {
+        spawnTrack(i * 10);
+      }
+    }
+
+    function gameOver() {
+      isPlaying = false;
+      document.getElementById('final-score').innerText = Math.floor(score);
+      document.getElementById('final-coins').innerText = coins;
+      if (gameoverModal) gameoverModal.classList.remove('hidden');
+    }
+
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    // Start Everything on Load
+    window.onload = () => {
+      init();
+      animate();
+    };
+  </script>
+</body>
+</html>
